@@ -25,7 +25,7 @@ public class AuthorController {
     public ResponseEntity<Author> getById(@PathVariable Integer id) {
         return authorRepository.findById(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new com.exception.ResourceNotFoundException("Author not found with id: " + id));
     }
 
     @PostMapping

@@ -30,7 +30,7 @@ public class BookDetailsController {
     public ResponseEntity<BookDetails> getById(@PathVariable Integer id) {
         return bookDetailsRepository.findById(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new com.exception.ResourceNotFoundException("Book Details not found with id: " + id));
     }
 
     @PostMapping

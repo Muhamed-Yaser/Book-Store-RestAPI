@@ -35,7 +35,7 @@ public class BookController {
     public ResponseEntity<Book> getById(@PathVariable Integer id) {
         return bookRepository.findById(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new com.exception.ResourceNotFoundException("Book not found with id: " + id));
     }
 
     // إضافة كتاب مع ربطه بالتصنيف والمؤلفين الموجودين مسبقاً

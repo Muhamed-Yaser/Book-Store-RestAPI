@@ -24,7 +24,7 @@ public class CategoryController {
     public ResponseEntity<Category> getById(@PathVariable Integer id) {
         return categoryRepository.findById(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new com.exception.ResourceNotFoundException("Category not found with id: " + id));
     }
 
     @PostMapping
