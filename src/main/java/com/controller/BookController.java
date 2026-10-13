@@ -1,22 +1,31 @@
 package com.controller;
 
+import com.dto.BookRequestDTO;
+import com.dto.BookResponseDTO;
 import com.model.Author;
-import com.model.Category;
 import com.model.Book;
+import com.model.Category;
 import com.repository.AuthorRepository;
-import com.repository.CategoryRepository;
 import com.repository.BookRepository;
+import com.repository.CategoryRepository;
+import com.exception.ResourceNotFoundException;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/books")
 public class BookController {
 
+    //Dependency Injection
+    //BookRepository: Interface to talk to DB
     @Autowired
     private BookRepository bookRepository;
 
@@ -26,50 +35,99 @@ public class BookController {
     @Autowired
     private AuthorRepository authorRepository;
 
+    private BookResponseDTO mapToDTO(Book book) {
+        BookResponseDTO dto = new BookResponseDTO();
+        dto.setId(book.getId());
+        dto.setTitle(book.getTitle());
+        dto.setPrice(book.getPrice());
+
+        dto.setCategoryName(book.getCategory() != null ? book.getCategory().getName() : "No Category");
+
+        List<String> authorNames = book.getAuthors() != null
+                ? book.getAuthors().stream().map(Author::getName).collect(Collectors.toList())
+                : List.of();
+        dto.setAuthorNames(authorNames);
+
+        return dto;
+    }
+
+    // (GET All)
     @GetMapping
-    public List<Book> getAll() {
-        return bookRepository.findAll();
+    public List<BookResponseDTO> getAllBooks() {
+        return bookRepository.findAll().stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
     }
 
+    //(GET By ID)
     @GetMapping("/{id}")
-    public ResponseEntity<Book> getById(@PathVariable Integer id) {
-        return bookRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElseThrow(() -> new com.exception.ResourceNotFoundException("Book not found with id: " + id));
+    public BookResponseDTO getBookById(@PathVariable Integer id) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
+        return mapToDTO(book);
     }
 
-    // إضافة كتاب مع ربطه بالتصنيف والمؤلفين الموجودين مسبقاً
+    // (Add book)
     @PostMapping
-    public Book create(@RequestBody Book book) {
-        // ensure of category existing
-        if (book.getCategory() != null && book.getCategory().getId() != null) {
-            Category category = categoryRepository.findById(book.getCategory().getId())
-                    .orElseThrow(() -> new RuntimeException("Category not found with id: " + book.getCategory().getId()));
-            book.setCategory(category);
+    public ResponseEntity<BookResponseDTO> createBook(@Valid @RequestBody BookRequestDTO requestDTO) {
+        Category category = categoryRepository.findById(requestDTO.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + requestDTO.getCategoryId()));
+
+        List<Author> authorsList = authorRepository.findAllById(requestDTO.getAuthorIds());
+        if (authorsList == null || authorsList.isEmpty()) {
+            throw new ResourceNotFoundException("No valid authors found for the provided IDs.");
         }
 
-        // ensure of authors existing
-        if (book.getAuthors() != null && !book.getAuthors().isEmpty()) {
-            List<Author> managedAuthors = new ArrayList<>();
-            for (Author author : book.getAuthors()) {
-                if (author.getId() != null) {
-                    Author existingAuthor = authorRepository.findById(author.getId())
-                            .orElseThrow(() -> new RuntimeException("Author not found with id: " + author.getId()));
-                    managedAuthors.add(existingAuthor);
-                }
-            }
-            book.setAuthors(managedAuthors);
-        }
 
-        return bookRepository.save(book);
+        Book book = new Book();
+        book.setTitle(requestDTO.getTitle());
+        book.setPrice(requestDTO.getPrice());
+        book.setCategory(category);
+        book.setAuthors(authorsList);
+
+
+        Book savedBook = bookRepository.save(book);
+
+        return new ResponseEntity<>(mapToDTO(savedBook), HttpStatus.CREATED);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Integer id) {
-        if (bookRepository.existsById(id)) {
-            bookRepository.deleteById(id);
-            return ResponseEntity.ok().build();
+    // (Update)
+    @PutMapping("/{id}")
+    public BookResponseDTO updateBook(@PathVariable Integer id, @Valid @RequestBody BookRequestDTO requestDTO) {
+
+        Book existingBook = bookRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
+
+
+        Category category = categoryRepository.findById(requestDTO.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + requestDTO.getCategoryId()));
+
+
+        List<Author> authorsList = authorRepository.findAllById(requestDTO.getAuthorIds());
+        if (authorsList == null || authorsList.isEmpty()) {
+            throw new ResourceNotFoundException("No valid authors found for the provided IDs.");
         }
-        return ResponseEntity.notFound().build();
+
+        existingBook.setTitle(requestDTO.getTitle());
+        existingBook.setPrice(requestDTO.getPrice());
+        existingBook.setCategory(category);
+        existingBook.setAuthors(authorsList);
+
+        Book updatedBook = bookRepository.save(existingBook);
+
+        return mapToDTO(updatedBook);
+    }
+
+    // (DELETE)
+    @DeleteMapping("/{id}")
+    //no return value
+    public ResponseEntity<Void> deleteBook(@PathVariable Integer id) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
+
+        bookRepository.delete(book);
+
+        //response : 204 No Content
+        return ResponseEntity.noContent().build();
     }
 }
