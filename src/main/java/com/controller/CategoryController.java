@@ -7,6 +7,8 @@ import com.repository.CategoryRepository;
 import com.exception.ResourceNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,10 +32,10 @@ public class CategoryController {
 
     // (GET All)
     @GetMapping
-    public List<CategoryResponseDTO> findAll() {
-        return categoryRepository.findAll().stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+    public ResponseEntity<Page<CategoryResponseDTO>> findAll(Pageable pageable) {
+        Page<Category> categoryPage = categoryRepository.findAll(pageable);
+        Page<CategoryResponseDTO> responseDTOPage = categoryPage.map(this::mapToDTO);
+        return ResponseEntity.ok(responseDTOPage);
     }
 
     // (GET By ID)

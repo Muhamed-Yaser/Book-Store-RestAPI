@@ -8,6 +8,10 @@ import com.repository.AuthorRepository;
 import com.exception.ResourceNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,12 +39,12 @@ public class AuthorController {
         return dto;
     }
 
-    // (GET All)
+    // Get All
     @GetMapping
-    public List<AuthorResponseDTO> getAll() {
-        return authorRepository.findAll().stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+    public ResponseEntity<Page<AuthorResponseDTO>> getAll(@PageableDefault(size = 10, page = 0, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+        Page<Author> authorPage = authorRepository.findAll(pageable);
+        Page<AuthorResponseDTO> responseDTOPage = authorPage.map(this::mapToDTO);
+        return ResponseEntity.ok(responseDTOPage);
     }
 
     @GetMapping("/{id}")

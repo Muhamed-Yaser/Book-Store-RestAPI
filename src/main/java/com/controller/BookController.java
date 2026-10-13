@@ -11,6 +11,10 @@ import com.repository.CategoryRepository;
 import com.exception.ResourceNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -51,12 +55,15 @@ public class BookController {
         return dto;
     }
 
-    // (GET All)
+    // (GET All with Pagination)
     @GetMapping
-    public List<BookResponseDTO> getAllBooks() {
-        return bookRepository.findAll().stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+    public ResponseEntity<Page<BookResponseDTO>> getAllBooks(@PageableDefault(size = 10, page = 0, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+
+        Page<Book> bookPage = bookRepository.findAll(pageable);
+
+        Page<BookResponseDTO> responseDTOPage = bookPage.map(this::mapToDTO);
+
+        return ResponseEntity.ok(responseDTOPage);
     }
 
     //(GET By ID)
